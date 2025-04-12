@@ -2,6 +2,8 @@ import cv2
 import apriltag
 import numpy as np
 import time
+import kinematics
+from kinematics import trajectory_prediction
 
 def detect_puck_position(frame, lower_red1, upper_red1, lower_red2, upper_red2, homography_matrix=None):
     if frame is None:
@@ -64,7 +66,7 @@ def detect_puck_position(frame, lower_red1, upper_red1, lower_red2, upper_red2, 
                 cv2.circle(warped_display, warped_puck_position, 10, (0, 0, 255), -1)
                 
                 # Show the warped view
-                cv2.imshow("Table View", warped_display)
+                # cv2.imshow("Table View", warped_display)
     
     return puck_position, table_position, display_frame, mask
 
@@ -196,6 +198,8 @@ def main():
     # Initialize homography matrix
     homography_matrix = None
     calibration_mode = True  # Start in calibration mode
+
+    first = True
     
     while True:
         ret, frame = cap.read()
@@ -261,6 +265,7 @@ def main():
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
                 
                 if table_position:
+
                     # Show table coordinates
                     table_pos_text = f"Table Position: ({table_position[0]:.1f}, {table_position[1]:.1f})"
                     cv2.putText(processed_frame, table_pos_text, (10, 60), 
@@ -278,19 +283,43 @@ def main():
                     
                     # Print table coordinates to console for logging/tracking
                     print(f"Time: {time.time() - time_start:.2f}, Table Position: ({table_position[0]:.1f}, {table_position[1]:.1f}) inches")
+
                     
                     # Calculate position relative to table center
                     table_center_x = table_dimensions[0] / 2
                     table_center_y = table_dimensions[1] / 2
                     rel_x = table_position[0] - table_center_x
                     rel_y = table_position[1] - table_center_y
+
+                    if first:
+                        curTime = time.time - time_start
+                        curX = rel_x[0]
+                        curY = rel_y[1]
+                        prevTime = curTime
+                        prevX = curX
+                        prevY = curY
+                        first = False
+
+                    curTime = time.time - time_start
+                    curX = rel_x[0]
+                    curY = rel_y[1]
+
+                    m, b = trajectory_prediction([curX, curY], curTime, [prevX, prevY], prevTime)
+                    
+                    goalX = -17
+                    intersectAtY = m*goalX + b
+
                     
                     # Calculate distance from center
-                    distance_from_center = np.sqrt(rel_x**2 + rel_y**2)
+                    # distance_from_center = np.sqrt(rel_x**2 + rel_y**2)
                     
                     # Print position relative to table center
-                    print(f"Position relative to table center: ({rel_x:.1f}, {rel_y:.1f}) inches")
-                    print(f"Distance from center: {distance_from_center:.1f} inches")
+                    # print(f"Position relative to table center: ({rel_x:.1f}, {rel_y:.1f}) inches")
+                    # print(f"Distance from center: {distance_from_center:.1f} inches")
+
+                    prevTime = curTime
+                    prevX = curX
+                    prevY = curY
             else:
                 cv2.putText(processed_frame, "No puck detected", (10, 30), 
                            cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 0, 255), 2)
@@ -302,7 +331,7 @@ def main():
                        cv2.FONT_HERSHEY_SIMPLEX, 0.7, (255, 0, 0), 2)
             
             # Display the mask to help with debugging color thresholds
-            cv2.imshow("Mask", mask)
+            # cv2.imshow("Mask", mask)
                 
             # Display the resulting frame
             cv2.imshow("Puck Detection", processed_frame)
@@ -313,13 +342,6 @@ def main():
                 break
             elif key == ord('r'):
                 calibration_mode = True
-            elif key == ord('t'):
-                # Create an interactive color tuning window (could be expanded for better control)
-                print("Current color thresholds:")
-                print(f"Lower: {lower_color}")
-                print(f"Upper: {upper_color}")
-                print("Adjust in the code if needed. Press any key to continue.")
-                cv2.waitKey(0)
     
     # When everything is done, release the capture
     if cap.isOpened():

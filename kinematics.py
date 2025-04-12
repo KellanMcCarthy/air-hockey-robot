@@ -14,15 +14,8 @@ def trajectory_prediction(center1, time1, center2, time2, x_end, y_end, goal_sta
     return m, b: parameters of the projected line 
     """
 
-    # these are placeholders and will be changed once we have a way to 
-    # relate camera frame and real life
-    x_table_edge = 0
-    y_table_edge_max = 100
-    y_table_edge_min = 0
-
-    x1,y1 = center1
+    x1, y1 = center1
     x2, y2 = center2
-
 
     # Placeholder, will likely need to change based on format of time1 and time2
     delta_t = time2 - time1
