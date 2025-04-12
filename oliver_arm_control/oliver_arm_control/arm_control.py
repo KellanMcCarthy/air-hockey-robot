@@ -16,7 +16,7 @@ class jointPositionPublisher(Node):
         self.jointsMoving = False
         self.jointGroupPublisher()
         self.get_logger().info("Should have published")
-        self.timer = self.create_timer(0.1, self.main_loop_callback)
+        self.timer = self.create_timer(0.2, self.main_loop_callback)
 
 
     def main_loop_callback(self):
@@ -34,13 +34,12 @@ class jointPositionPublisher(Node):
 
     def jointStateCallback(self, msg):
         # self.get_logger().type(str(msg))
-        self.get_logger().info("Velocity: " + str(msg.velocity))
         for v in msg.velocity:
             if abs(v) > 0.01:
-                self.get_logger().info("Call-back-back: Joints are moving")
+                #self.get_logger().info("Call-back-back: Joints are moving")
                 self.jointsMoving = True
                 return
-        self.get_logger().info("Call-back-back: Joints are not moving")
+        #self.get_logger().info("Call-back-back: Joints are not moving")
         self.jointsMoving = False
 
 
