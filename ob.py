@@ -3,7 +3,7 @@ import apriltag
 import numpy as np
 import time
 
-def detect_puck_position(frame, lower_color, upper_color, homography_matrix=None):
+def detect_puck_position(frame, lower_red1, upper_red1, lower_red2, upper_red2, homography_matrix=None):
     if frame is None:
         print("Error: Invalid frame.")
         return None, None, None
@@ -16,7 +16,11 @@ def detect_puck_position(frame, lower_color, upper_color, homography_matrix=None
     
     # Create a mask for the puck color in the original frame
     hsv_frame = cv2.cvtColor(frame, cv2.COLOR_BGR2HSV)  # Convert to HSV for better color detection
-    mask = cv2.inRange(hsv_frame, lower_color, upper_color)
+    # mask = cv2.inRange(hsv_frame, lower_color, upper_color)
+
+    mask1 = cv2.inRange(hsv_frame, lower_red1, upper_red1)
+    mask2 = cv2.inRange(hsv_frame, lower_red2, upper_red2)
+    mask = cv2.bitwise_or(mask1, mask2)
     
     # Apply morphological operations to remove noise and fill gaps
     kernel = np.ones((5, 5), np.uint8)
@@ -160,9 +164,14 @@ def calculate_homography(tag_corners, table_dimensions):
 def main():
     # Puck color range in HSV (adjust these for your puck color)
     # This example is for a black puck
-    lower_color = np.array([0, 0, 0])
-    upper_color = np.array([180, 50, 50])  # Adjusted for better black detection in HSV
+    lower_red1 = np.array([0, 100, 100])
+    upper_red1 = np.array([10, 255, 255])
+
+    lower_red2 = np.array([160, 100, 100])
+    upper_red2 = np.array([179, 255, 255])
     
+
+
     # Add a reference to table_dimensions in the main function scope for relative positioning
     global table_dimensions
 
@@ -242,7 +251,7 @@ def main():
         else:
             # Puck detection mode
             puck_position, table_position, processed_frame, mask = detect_puck_position(
-                frame, lower_color, upper_color, homography_matrix
+                frame, lower_red1, upper_red1, lower_red2, upper_red2, homography_matrix
             )
             
             # Display position information on the frame
