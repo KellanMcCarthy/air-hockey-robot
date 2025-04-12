@@ -12,28 +12,36 @@ class jointPositionPublisher(Node):
         self.jointGroupCommandPublisherNode = self.create_publisher(JointGroupCommand, '/wx250/commands/joint_group', 10)
         self.subscription = self.create_subscription(msg_type=JointState, topic='/wx250/joint_states', callback=self.jointStateCallback, qos_profile=1) 
         
-        self.joint0 = 0.0
+        self.joint0 = 1.0
+        self.jointsMoving = False
         self.jointGroupPublisher()
         self.get_logger().info("Should have published")
-        self.timer = self.create_timer(10, self.joint_group_publisher_timer_callback)
+        self.timer = self.create_timer(0.1, self.main_loop_callback)
 
 
-    def joint_group_publisher_timer_callback(self):
+    def main_loop_callback(self):
         self.get_logger().info("Callback for oliver arm")
-        self.cameraPass()
-        time.sleep(3)
+        #self.cameraPass()
+        if (self.jointsMoving):
+            self.get_logger().info("Joints are moving, waiting")
+            return
+        self.get_logger().info("Joints are not moving, continuing")
+        self.get_logger().info("Joint0 Before: " + str(self.joint0))
+        self.joint0 = -self.joint0
+        self.get_logger().info("Joint0 After: " + str(self.joint0))
         self.jointGroupPublisher(joint0=self.joint0)
-        self.joint0 = self.joint0 + .5
-        time.sleep(3)
-        self.jointGroupPublisher(joint0=self.joint0)
-        self.joint0 = self.joint0 - 1
-        time.sleep(3)
-        self.jointGroupPublisher(joint0=self.joint0)
-        self.joint0 = 0.0
 
 
     def jointStateCallback(self, msg):
-        self.get_logger().info(str(msg))
+        # self.get_logger().type(str(msg))
+        self.get_logger().info("Velocity: " + str(msg.velocity))
+        for v in msg.velocity:
+            if abs(v) > 0.01:
+                self.get_logger().info("Call-back-back: Joints are moving")
+                self.jointsMoving = True
+                return
+        self.get_logger().info("Call-back-back: Joints are not moving")
+        self.jointsMoving = False
 
 
 
