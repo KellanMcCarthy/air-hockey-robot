@@ -78,7 +78,7 @@ def detect_april_tags(frame):
     gray = cv2.cvtColor(frame, cv2.COLOR_BGR2GRAY)
     
     # Create the AprilTag detector
-    options = apriltag.DetectorOptions(families="tag36h11")
+    options = apriltag.DetectorOptions(families="tag16h5")
     detector = apriltag.Detector(options)
     
     # Detect AprilTags
