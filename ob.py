@@ -30,16 +30,17 @@ def detect_puck_position(frame, lower_red1, upper_red1, lower_red2, upper_red2, 
     mask = cv2.dilate(mask, kernel, iterations=2)
     
     # Find contours in the mask
-    contours, _ = cv2.findContours(mask, cv2.RETR_EXTERNAL, cv2.CHAIN_APPROX_SIMPLE)
-    
+    contours, hierarchy = cv2.findContours(mask, cv2.RETR_CCOMP, cv2.CHAIN_APPROX_SIMPLE)    
+    solid_contours = [contours[i] for i in range(len(contours)) if hierarchy[0][i][2] == -1]
+
     puck_position = None
     table_position = None
     
-    if contours:
+    if solid_contours:
         # assume largest contour is the puck
         largest_contour = max(contours, key=cv2.contourArea)
-        
-        min_area = 50  # Adjust this threshold based on your puck size
+        print(cv2.contourArea(largest_contour))
+        min_area = 550  # Adjust this threshold based on your puck size
         if cv2.contourArea(largest_contour) > min_area:  # Filter out noise
             (x, y), radius = cv2.minEnclosingCircle(largest_contour)
             puck_position = (int(x), int(y))
@@ -282,7 +283,7 @@ def main():
                                cv2.FONT_HERSHEY_SIMPLEX, 0.7, (0, 255, 0), 2)
                     
                     # Print table coordinates to console for logging/tracking
-                    print(f"Time: {time.time() - time_start:.2f}, Table Position: ({table_position[0]:.1f}, {table_position[1]:.1f}) inches")
+                    # print(f"Time: {time.time() - time_start:.2f}, Table Position: ({table_position[0]:.1f}, {table_position[1]:.1f}) inches")
 
                     
                     # Calculate position relative to table center
