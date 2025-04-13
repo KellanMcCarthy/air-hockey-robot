@@ -39,8 +39,8 @@ def detect_puck_position(frame, lower_red1, upper_red1, lower_red2, upper_red2, 
     if solid_contours:
         # assume largest contour is the puck
         largest_contour = max(contours, key=cv2.contourArea)
-        print(cv2.contourArea(largest_contour))
-        min_area = 550  # Adjust this threshold based on your puck size
+        # print(cv2.contourArea(largest_contour))
+        min_area = 500  # Adjust this threshold based on your puck size
         if cv2.contourArea(largest_contour) > min_area:  # Filter out noise
             (x, y), radius = cv2.minEnclosingCircle(largest_contour)
             puck_position = (int(x), int(y))
@@ -304,17 +304,21 @@ def main():
                     curTime = time.time() - time_start
                     curX = rel_x
                     curY = rel_y
-
-                    m, b = trajectory_prediction(curX, curY, curTime, prevX, prevY, prevTime)                    
-                    intersectAtY = m*3 + b
-
                     
-                    # Calculate distance from center
-                    # distance_from_center = np.sqrt(rel_x**2 + rel_y**2)
-                    
-                    # Print position relative to table center
-                    # print(f"Position relative to table center: ({rel_x:.1f}, {rel_y:.1f}) inches")
-                    # print(f"Distance from center: {distance_from_center:.1f} inches")
+                    velocity_x = curX - prevX
+                    velocity_y = curY - prevY
+                    delta_t = curTime - prevTime if curTime - prevTime > 0 else 1e-6
+
+                    speed = np.sqrt(velocity_x**2 + velocity_y**2) / delta_t
+
+                    if speed > 8.0 and velocity_y < 0: 
+                        m, b = trajectory_prediction(curX, curY, curTime, prevX, prevY, prevTime)
+                        
+                        yGoal = -17
+                        intersectAtX = (yGoal - b) / m
+                        print(intersectAtX)
+                    else:
+                        print("Puck is moving away from the goal. No prediction.")
 
                     prevTime = curTime
                     prevX = curX
