@@ -292,22 +292,20 @@ def main():
                     rel_y = table_position[1] - table_center_y
 
                     if first:
-                        curTime = time.time - time_start
-                        curX = rel_x[0]
-                        curY = rel_y[1]
+                        curTime = time.time() - time_start
+                        curX = rel_x
+                        curY = rel_y
                         prevTime = curTime
                         prevX = curX
                         prevY = curY
                         first = False
 
-                    curTime = time.time - time_start
-                    curX = rel_x[0]
-                    curY = rel_y[1]
+                    curTime = time.time() - time_start
+                    curX = rel_x
+                    curY = rel_y
 
-                    m, b = trajectory_prediction([curX, curY], curTime, [prevX, prevY], prevTime)
-                    
-                    goalX = -17
-                    intersectAtY = m*goalX + b
+                    m, b = trajectory_prediction(curX, curY, curTime, prevX, prevY, prevTime)                    
+                    intersectAtY = m*3 + b
 
                     
                     # Calculate distance from center
