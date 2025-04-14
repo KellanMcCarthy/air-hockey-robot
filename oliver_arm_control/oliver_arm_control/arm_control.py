@@ -6,6 +6,7 @@ import time
 import cv2
 import numpy as np
 import apriltag
+import math
 
 class jointPositionPublisher(Node):
     def __init__(self):
@@ -15,24 +16,25 @@ class jointPositionPublisher(Node):
         
         self.setup_video_capture()
 
-        self.joint0 = 0.7
         self.jointsMoving = False
         self.jointGroupPublisher()
-        self.get_logger().info("Should have published")
-        self.timer = self.create_timer(0.2, self.main_loop_callback)
+        # self.get_logger().info("Should have published")
+        self.timer = self.create_timer(0.06, self.main_loop_callback)
 
 
     def main_loop_callback(self):
-        self.get_logger().info("Callback for oliver arm")
-        self.cameraPass()
-        if (self.jointsMoving):
-            self.get_logger().info("Joints are moving, waiting")
+        # self.get_logger().info("Callback for oliver arm")
+        camPass = self.cameraPass()
+        if (camPass is None):
             return
-        #self.get_logger().info("Joints are not moving, continuing")
-        #self.get_logger().info("Joint0 Before: " + str(self.joint0))
-        self.joint0 = -self.joint0
-        #self.get_logger().info("Joint0 After: " + str(self.joint0))
-        self.jointGroupPublisher(joint0=self.joint0)
+        
+        theta = camPass
+            
+        if (self.jointsMoving):
+            # self.get_logger().info("Joints are moving, waiting")
+            return
+
+        self.jointGroupPublisher(joint0=theta)
 
 
     def jointStateCallback(self, msg):
@@ -53,17 +55,38 @@ class jointPositionPublisher(Node):
 
         #Placeholders for now
         msg.cmd = [joint0, joint1, joint2, joint3, joint4]
-        self.get_logger().info(str(msg))
+        # self.get_logger().info(str(msg))
         self.jointGroupCommandPublisherNode.publish(msg)
 
+    def calculate_waist_angle(self, x_pos, puck_to_waist):
+        # can assume 
 
+        beta = x_pos / puck_to_waist
+        if (abs(beta) > 1):
+            if (beta > 0):
+                beta = 1
+            else:
+                beta = -1
+
+        is_negative = beta < 0
+        alpha = math.acos(abs(beta))
+        theta = math.pi / 2 - alpha
+        if theta > 1:
+            theta = 1
+        if is_negative:
+            theta = -1 * theta
+
+        self.get_logger().info("Theta: " + str(theta))
+
+        return theta
+    
     def cameraPass(self):
-        self.get_logger().info("Starting camera pass")
-        self.get_logger().info("Calibration mode: " + str(self.calibration_mode))
+        # self.get_logger().info("Starting camera pass")
+        # self.get_logger().info("Calibration mode: " + str(self.calibration_mode))
         ret, frame = self.cap.read()
         if not ret:
             self.get_logger().info("Error: Can't receive frame. Exiting...")
-            return
+            return None
         
         if self.calibration_mode:
             # Detect April Tags
@@ -131,21 +154,39 @@ class jointPositionPublisher(Node):
                     delta_t = curTime - self.prevTime if curTime - self.prevTime > 0 else 1e-6
 
                     speed = np.sqrt(velocity_x**2 + velocity_y**2) / delta_t
-
-                    if speed > 8.0 and velocity_y < 0: 
+                    # self.get_logger().info("Speed: " + str(speed))
+                    # self.get_logger().info("Velocity Y: " + str(velocity_y))
+                    if speed > 1 and velocity_y < 0: 
                         m, b = self.trajectory_prediction(curX, curY, curTime, self.prevX, self.prevY, self.prevTime)
                         
-                        yGoal = -17
+                        yGoal = -12 
                         intersectAtX = (yGoal - b) / m
                         self.get_logger().info("Intersect at X: " + str(intersectAtX))
-                    else:
-                        self.get_logger().info("Puck is moving away from the goal. No prediction.")
 
+                        self.puck_to_waist = 14
+                        theta = self.calculate_waist_angle(intersectAtX, self.puck_to_waist)
+
+                        #capping the bounds to not send robo flying
+                        if (abs(theta) > .7):
+                            if (theta > 0):
+                                theta = -0.7
+                            else:
+                                theta = 0.7
+                        
+                        self.prevTime = curTime
+                        self.prevX = curX
+                        self.prevY = curY
+                        
+                        return theta
+                    
                     self.prevTime = curTime
                     self.prevX = curX
                     self.prevY = curY
             else:
                 self.get_logger().info("Puck not detected.")
+                return None
+
+  
 
 
     def detect_puck_position(self, frame, lower_red1, upper_red1, lower_red2, upper_red2, homography_matrix=None):
@@ -225,7 +266,7 @@ class jointPositionPublisher(Node):
         self.upper_red2 = np.array([179, 255, 255])
 
         # Table dimensions in inches (7.5 ft x 4 ft)
-        self.table_dimensions = (90, 48)  # 7.5 ft = 90 inches, 4 ft = 48 inches
+        self.table_dimensions = (40, 40)  # 7.5 ft = 90 inches, 4 ft = 48 inches
         
         fps_start_time = time.time()
         self.time_start = fps_start_time
